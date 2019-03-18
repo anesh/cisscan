@@ -9,6 +9,9 @@ from ciscoconfparse import CiscoConfParse
 import getpass
 import json
 from sh import Command
+#import cryptography
+#import warnings
+#warnings.simplefilter("ignore", cryptography.utils.CryptographyDeprecationWarning)
 '''
 def get_hosts(inventory_path, group_name):
     ansible_inventory = Command('/opt/rh/python27/root/usr/bin/ansible-inventory')
@@ -45,7 +48,7 @@ username = raw_input('Enter username for device login:')
 password =  getpass.getpass()
 
 
-book = xlsxwriter.Workbook('CIS-Level1-ScanReport_CTB.xlsx')
+book = xlsxwriter.Workbook('CIS-Level1-ScanReport_CTB_MAR16.xlsx')
 sheet = book.add_worksheet("report")
 
 header_format = book.add_format({'bold':True , 'bg_color':'yellow'})
@@ -156,8 +159,8 @@ for device in devices:
 				for obj in objchild.children:
 					timeout=re.findall(r'(?<=exec-timeout)(.\d*)',obj.text)
 					if timeout:
-						timeoutcheck= int(timeout[0])
-                        	if timeoutcheck <= 10:
+						timeoutcheck= timeout[0]
+                        	if int(timeoutcheck) <= 10:
 					sheet.write(row, 18,"PASS")
                         	else:
 					sheet.write(row, 18,"FAIL")
@@ -248,30 +251,13 @@ for device in devices:
 		else:
 			sheet.write(row,32,"FAIL")
 		
-		aclcount = 0
-                match60a=parse.find_objects("^access-list 11")
-                if match60a:
-                	aclcount= aclcount+1
-
-                match60b=parse.find_objects("^access-list 12")
-                if match60b:
-                        aclcount=aclcount+1
-                match60c=parse.find_objects("^access-list 13")
-                if match60c:
-                        aclcount=aclcount+1
-                match60d=parse.find_objects("^access-list 14")
-                if match60d:
-                        aclcount=aclcount+1
-                match60e=parse.find_objects("^access-list 15")
-                if match60e:
-                       	aclcount=aclcount+1
-
-                if aclcount == 5:
+                match60=parse.find_objects("access-list 65")
+                if match60:
                         match60="YES"
+			sheet.write(row,33,"PASS")
                 else:
-                        match60="NO"
+                        sheet.write(row,33,"FAIL")
 
-                sheet.write(row,33,match60)
 
 		#ssh.connect(device, username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
 		#stdin,stdout,stderr = ssh.exec_command('sh ip access-list 12')
@@ -296,9 +282,12 @@ for device in devices:
 		match21=parse.find_objects("^hostname")
 		r21=checkmatch(match21)
 		sheet.write(row,38,r21)
-		match22=parse.find_objects("^ip domain-name")
-		r22=checkmatch(match22)
-		sheet.write(row,39,r22)
+		domainmatch1=parse.find_objects("^ip domain-name")
+		domainmathc2=parse.find_objects("^ip domain name")
+		if domainmatch1 or domainmathc2:
+			sheet.write(row,39,"PASS")
+		else:
+			sheet.write(row,39,"FAIL")
 		match63="N/A"
 		sheet.write(row,40,match63)
 		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
@@ -367,18 +356,20 @@ for device in devices:
 		r33=checkmatch(match33)
 		sheet.write(row,53,"Waived")
 		logmatch1=parse.find_objects("^logging host")
-		logmatch2=parse.find_objects("^logging")
-		if logmatch1 or logmatch2:
-			sheet.write(row,54,"PASS")
-		else:
-			sheet.write(row,54,"FAIL")
+                logmatch2=parse.find_objects("^logging")
+                if logmatch1 or logmatch2:
+                        sheet.write(row,54,"PASS")
+                else:
+                        sheet.write(row,54,"FAIL")
+
 		#match35=parse.find_objects("^trap logging")
+		#r35=checkmatch(match35)
 		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
                 stdin,stdout,stderr = ssh.exec_command('sh log | i logging')
                 match35=stdout.readlines()
                 loggingparse = CiscoConfParse(match35)
                 traplogdefind=loggingparse.find_objects("Trap logging: level debugging")
-                traploginfofind=loggingparse.find_objects("Trap logging: level informational")
+		traploginfofind=loggingparse.find_objects("Trap logging: level informational")
                 if traplogdefind or traploginfofind:
                         sheet.write(row,55,"PASS")
                 else:
@@ -458,6 +449,11 @@ for device in devices:
 		stdin,stdout,stderr = ssh.exec_command('show running-config all')
 		config = stdout.readlines()
 		parse = CiscoConfParse(config)
+		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
+                stdin,stdout,stderr = ssh.exec_command('show run')
+                shrun = stdout.readlines()
+                parse2 = CiscoConfParse(shrun)
+
 		match1=parse.find_objects("^aaa new-model")
 		r1=checkmatch(match1)
 	        sheet.write(row, 1,"Waived" )	
@@ -610,29 +606,9 @@ for device in devices:
         	#	print "PASS"
 		#	sheet.write(row,31,"PASS")
                 sheet.write(row,31,"Waived")
-                aclcount=0
-		snmpacl11=snmpparse.find_objects("ACL mapped: 11")
-		if snmpacl11:
-        		aclcount= aclcount+1
-
-		snmpacl12=snmpparse.find_objects("ACL mapped: 12")
-		if snmpacl12:
-        		aclcount= aclcount+1
-
-		snmpacl13=snmpparse.find_objects("ACL mapped: 13")
-		if snmpacl13:
-        		aclcount= aclcount+1
-
-		snmpacl14=snmpparse.find_objects("ACL mapped: 14")
-		if snmpacl14:
-       			aclcount= aclcount+1
-
-		snmpacl15=snmpparse.find_objects("ACL mapped: 15")
-		if snmpacl15:
-       			aclcount= aclcount+1
-
-
-		if aclcount == 5:
+		snmpacl1=parse.find_objects("^ip access-list ACL-LIMIT-SNMP")
+		snmpacl2=parse.find_objects("^ip access-list ACL-Limit-SNMP")
+		if snmpacl1 or snmpacl2:
 			sheet.write(row,33,"PASS")
 		else:
 			sheet.write(row,33,"FAIL")
@@ -666,13 +642,9 @@ for device in devices:
 		match21=parse.find_objects("^hostname")
 		r21=checkmatch(match21)
 		sheet.write(row,38,r21)
-		domainmatch1=parse.find_objects("^ip domain-name")
-                domainmathc2=parse.find_objects("^ip domain name")
-                if domainmatch1 or domainmathc2:
-                        sheet.write(row,39,"PASS")
-                else:
-                        sheet.write(row,39,"FAIL")
-
+		match22=parse.find_objects("domain-name")
+		r22=checkmatch(match22)
+		sheet.write(row,39,r22)
 		
 		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
 		stdin,stdout,stderr = ssh.exec_command('sh ssh key')
@@ -699,10 +671,13 @@ for device in devices:
                 		sheet.write(row,43,"FAIL")
 
 		
-		timeout=parse.find_objects("exec-timeout")
+		timeout=parse.find_objects(r"exec")
+		#timeout=parse.find_objects_w_child(parentspec=r"^line vty", childspec=r"exec-timeout")
 		if timeout:
+			#print timeout
 			sheet.write(row,41,"PASS")
 		else:
+			#print timeout
 			sheet.write(row,41,"FAIL")
 
 		retries=parse.find_objects("login-attempt")
@@ -752,22 +727,28 @@ for device in devices:
 		match33=parse.find_objects("^logging console critical")
 		r33=checkmatch(match33)
 		sheet.write(row,53,"Waived")
-		match34=parse.find_objects("^logging server")
-		r34=checkmatch(match34)
-		sheet.write(row,54,r34)
-		match35=parse.find_objects("^logging server")
-		for logfind in match35:
-			log=re.search(r'(?<=logging server\s)(\d*.\d*.\d*.\d*\s)(\d)',logfind.text)	
-			if log.group(2) == 6|7:
-				print log.group(1)
-				sheet.write(row,55,"PASS")
-			else:
-				sheet.write(row,55,"FAIL")
+		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
+                stdin,stdout,stderr = ssh.exec_command('sh run | i logging | i server')
+                match35=stdout.readlines()
+                loggingserverparse = CiscoConfParse(match35)
+                logserverfind=loggingserverparse.find_objects("logging server")
+		if logserverfind:
+			sheet.write(row,54,"PASS")
+                else:
+                        sheet.write(row,54,"FAIL")
+
+		for logfind in logserverfind:
+                       	log=re.search(r'(?<=logging server\s)(\d*.\d*.\d*.\d*\s)(\d)',logfind.text)
+			if log and log.group(2): 
+				val=int(log.group(2))
+                        	sheet.write(row,55,"PASS")
+                       	else:
+                        	sheet.write(row,55,"FAIL")
 		match36=parse.find_objects("^service timestamps debug datetime")
 		r36=checkmatch(match36)
 		sheet.write(row,56,"Waived")
-		match37=parse.find_objects("^logging source")
-		r37=checkmatch(match37)
+		logsourceint=parse2.find_objects("^logging source")
+		r37=checkmatch(logsourceint)
 		sheet.write(row,57,r37)
 		#match38=parse.find_objects("^ntp authenticate")
 		#r38=checkmatch(match38)
@@ -791,7 +772,8 @@ for device in devices:
 		match69="N/A"
 		sheet.write(row,66,match69)
 		
-		match43=parse.find_objects("^no ip source-route")
+		match43=parse2.find_objects("^no ip source-route")
+		print match43
 		r43=checkmatch(match43)
 		sheet.write(row,67,r43)
 		#match44=parse.find_objects("^no ip proxy-arp")
@@ -833,10 +815,13 @@ for device in devices:
 
     except socket.error, e:
         output = "Socket error"
+	#sheet.write(row,5,output)
     except paramiko.SSHException:
         output = "Issues with SSH service"
+	#sheet.write(row,5,output)
     except paramiko.AuthenticationException:
         output = "Authentication Failed"
+	#sheet.write(row,5,output)
     except Exception as e: print(e)		 
         
 
