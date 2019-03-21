@@ -40,6 +40,7 @@ def get_hosts(inventory_path, group_name):
         return hosts
 
 devices=get_hosts('master_inventory.ini',sys.argv[1])
+
 '''
 
 
@@ -52,7 +53,7 @@ username = raw_input('Enter username for device login:')
 password =  getpass.getpass()
 
 
-book = xlsxwriter.Workbook('CISLevel2ScanReport_test.xlsx')
+book = xlsxwriter.Workbook('CISLevel2ScanReport_CTB_MAR20.xlsx')
 sheet = book.add_worksheet("report")
 
 header_format = book.add_format({'bold':True , 'bg_color':'yellow'})
@@ -68,7 +69,6 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 config =[]
 row=0
 rwcount=0
-
 def checkmatch(rvalue):
 	if not rvalue:
 		return "FAIL"
@@ -77,10 +77,15 @@ def checkmatch(rvalue):
 
 
 for device in devices:
+    routerflag=0
     row=row+1
     column = device.split()
     ip=column[1]
     print column[0]
+    routercheck=column[0][-2]
+    if routercheck is 'r':
+    	routerflag = 1
+	print routerflag
     sheet.write(row, 0,column[0] )
     try:
 	ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
@@ -413,20 +418,23 @@ for device in devices:
 		match44=parse.find_objects("^no ip proxy-arp")
 		r44=checkmatch(match44)
 		sheet.write(row,68,"Waived")
-		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
-		stdin,stdout,stderr = ssh.exec_command('sh ip int brief')
-                match45=stdout.readlines()
-                tunnelparse = CiscoConfParse(match45)
-                tunnelfind=tunnelparse.find_objects("Tunnel")
-                if tunnelfind:
-                        sheet.write(row,69,"FAIL")
-                else:
-                        sheet.write(row,69,"PASS")
+		if routerflag != 1:
+			ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
+			stdin,stdout,stderr = ssh.exec_command('sh ip int brief')
+                	match45=stdout.readlines()
+                	tunnelparse = CiscoConfParse(match45)
+                	tunnelfind=tunnelparse.find_objects("Tunnel")
+                	if tunnelfind:
+                        	sheet.write(row,69,"FAIL")
+                	else:
+                        	sheet.write(row,69,"PASS")
+		else:
+			 sheet.write(row,69,"Waived")
 
 
 		match70="Waived"
 		sheet.write(row,70,match70)
-		match71="N/A"
+		match71="Waived"
 		sheet.write(row,71,match71)
 		match72="Waived"
 		sheet.write(row,72,match72)
@@ -466,7 +474,7 @@ for device in devices:
 	        sheet.write(row, 1,"N/A" )	
                 match2=parse.find_objects("^aaa authentication")
 		r2=checkmatch(match2)
-                sheet.write(row, 2,r2 )
+                sheet.write(row, 2,"N/A" )
 		match3=parse.find_objects("^aaa authentication login default")
 		r3=checkmatch(match3)
                 sheet.write(row, 3,"N/A" )
@@ -479,7 +487,7 @@ for device in devices:
 		#match6=parse.find_objects_w_child(parentspec=r"^line vty", childspec=r"login authentication")
 		match6=parse.find_objects("^line vty")
 		r6=checkmatch(match6)
-		sheet.write(row, 6,r6 )
+		sheet.write(row, 6,"N/A" )
 		match46 =parse.find_objects("^aaa accounting commands")
 		r46=checkmatch(match46)
 		sheet.write(row, 7,"Waived" )

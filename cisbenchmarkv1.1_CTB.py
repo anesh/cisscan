@@ -48,7 +48,7 @@ username = raw_input('Enter username for device login:')
 password =  getpass.getpass()
 
 
-book = xlsxwriter.Workbook('CIS-Level1-ScanReport_CTB_MAR16.xlsx')
+book = xlsxwriter.Workbook('CIS-Level1-ScanReport_CTB_MAR20.xlsx')
 sheet = book.add_worksheet("report")
 
 header_format = book.add_format({'bold':True , 'bg_color':'yellow'})
@@ -89,6 +89,12 @@ for device in devices:
 		stdin,stdout,stderr = ssh.exec_command('show running-config all')
 		config = stdout.readlines()
 		parse = CiscoConfParse(config)
+
+		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
+                stdin,stdout,stderr = ssh.exec_command('show run')
+                shrun = stdout.readlines()
+                parse2 = CiscoConfParse(shrun)
+
 		match1=parse.find_objects("^aaa new-model")
 		r1=checkmatch(match1)
 	        sheet.write(row, 1,r1 )	
@@ -159,13 +165,13 @@ for device in devices:
 				for obj in objchild.children:
 					timeout=re.findall(r'(?<=exec-timeout)(.\d*)',obj.text)
 					if timeout:
-						timeoutcheck= timeout[0]
+						timeoutcheck= int(timeout[0])
                         	if int(timeoutcheck) <= 10:
 					sheet.write(row, 18,"PASS")
                         	else:
 					sheet.write(row, 18,"FAIL")
                 else:
-			sheet.write(row, 18,"N/A")
+			sheet.write(row, 18,"FAIL")
 
 		match87=parse.find_objects_w_child(parentspec=r"^line tty", childspec=r"exec-timeout")
 		if match87:
@@ -180,19 +186,26 @@ for device in devices:
 					sheet.write(row, 19,"Waived")
                 else:
 			sheet.write(row, 19,"Waived")
-		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
-                stdin,stdout,stderr = ssh.exec_command('sh run | sec vty')
-                match88=stdout.readlines()
-                vtyparse = CiscoConfParse(match88)
-                vtyparams=vtyparse.find_objects("exec-timeout")
-                for vtyfind in vtyparams:
-			timeout=re.findall(r'(?<=exec-timeout)(.\d*)',vtyfind.text)
-			if timeout:
-                        	timeoutcheck= int(timeout[0])
-                if timeoutcheck <= 10:
-			sheet.write(row, 20,"PASS")
-                else:
-			sheet.write(row, 20,"FAIL")
+		#ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
+                #stdin,stdout,stderr = ssh.exec_command('sh run | sec vty')
+                #match88=stdout.readlines()
+                #vtyparse = CiscoConfParse(match88)
+                #vtyparams=vtyparse.find_objects("exec-timeout")
+                #for vtyfind in vtyparams:
+		#	timeout=re.findall(r'(?<=exec-timeout)(.\d*)',vtyfind.text)
+		#	print timeout
+		#	if timeout:
+                #      	timeoutcheck= int(timeout[0])
+		match88=parse2.find_objects_w_child(parentspec=r"^line vty 0", childspec=r"exec-timeout")
+		for objchild in match88:
+                                for obj in objchild.children:
+                                        timeout=re.findall(r'(?<=exec-timeout)(.\d*)',obj.text)
+					if timeout:
+                                                timeoutcheck= int(timeout[0])
+                		if timeoutcheck <= 10:
+					sheet.write(row, 20,"PASS")
+                		else:
+					sheet.write(row, 20,"FAIL")
    
 		match15=parse.find_objects_w_child(parentspec=r"^line aux 0", childspec=r"transport input none")
 		r15=checkmatch(match15)
@@ -516,7 +529,7 @@ for device in devices:
                 else:
 			sheet.write(row,17,"Waived")
 
-		match86=parse.find_objects_w_child(parentspec=r"^line console", childspec=r"exec-timeout")
+		match86=parse2.find_objects_w_child(parentspec=r"^line console", childspec=r"exec-timeout")
 		if match86:
 			for objchild in match86:
 				for obj in objchild.children:
@@ -528,7 +541,7 @@ for device in devices:
                         	else:
 					sheet.write(row, 18,"FAIL")
                 else:
-			sheet.write(row, 18,"N/A")
+			sheet.write(row, 18,"FAIL")
 
 		match87=parse.find_objects_w_child(parentspec=r"^line tty", childspec=r"exec-timeout")
 		if match87:
@@ -543,7 +556,7 @@ for device in devices:
 					sheet.write(row, 19,"Waived")
                 else:
 			sheet.write(row, 19,"Waived")
-                match88=parse.find_objects_w_child(parentspec=r"^line vty", childspec=r"exec-timeout")
+                match88=parse2.find_objects_w_child(parentspec=r"^line vty", childspec=r"exec-timeout")
 		if match88:
 			for objchild in match88:
                                 for obj in objchild.children:
@@ -555,7 +568,7 @@ for device in devices:
                                 else:
 					sheet.write(row, 20,"FAIL")
                 else:
-			sheet.write(row, 20,"N/A")
+			sheet.write(row, 20,"FAIL")
    
 		match15=parse.find_objects_w_child(parentspec=r"^line aux 0", childspec=r"transport input none")
 		r15=checkmatch(match15)
@@ -608,7 +621,8 @@ for device in devices:
                 sheet.write(row,31,"Waived")
 		snmpacl1=parse.find_objects("^ip access-list ACL-LIMIT-SNMP")
 		snmpacl2=parse.find_objects("^ip access-list ACL-Limit-SNMP")
-		if snmpacl1 or snmpacl2:
+		snmpacl3=parse.find_objects("^ip access-list Limit-SNMP")
+		if snmpacl1 or snmpacl2 or snmpacl3:
 			sheet.write(row,33,"PASS")
 		else:
 			sheet.write(row,33,"FAIL")
@@ -671,13 +685,10 @@ for device in devices:
                 		sheet.write(row,43,"FAIL")
 
 		
-		timeout=parse.find_objects(r"exec")
-		#timeout=parse.find_objects_w_child(parentspec=r"^line vty", childspec=r"exec-timeout")
+		timeout=parse2.find_objects(r"exec")
 		if timeout:
-			#print timeout
 			sheet.write(row,41,"PASS")
 		else:
-			#print timeout
 			sheet.write(row,41,"FAIL")
 
 		retries=parse.find_objects("login-attempt")
@@ -692,7 +703,7 @@ for device in devices:
 		sheet.write(row,44,"Waived")
 		match25=parse.find_objects("^no ip bootp server")
 		r25=checkmatch(match25)
-		sheet.write(row,45,r25)
+		sheet.write(row,45,"Waived")
 		ssh.connect(column[1], username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
                 stdin,stdout,stderr = ssh.exec_command('sh feature | i dhcp')
                 match26=stdout.readlines()
@@ -773,7 +784,6 @@ for device in devices:
 		sheet.write(row,66,match69)
 		
 		match43=parse2.find_objects("^no ip source-route")
-		print match43
 		r43=checkmatch(match43)
 		sheet.write(row,67,r43)
 		#match44=parse.find_objects("^no ip proxy-arp")
