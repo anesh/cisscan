@@ -43,12 +43,12 @@ def get_hosts(inventory_path, group_name):
 
 devices=get_hosts('master_inventory.ini',sys.argv[1])
 '''
-
+timestr = time.strftime("%Y%m%d")
 username = raw_input('Enter username for device login:')
 password =  getpass.getpass()
 
 
-book = xlsxwriter.Workbook('CIS-Level1-ScanReport_CTB_MAR20.xlsx')
+book = xlsxwriter.Workbook('CIS-Level1-ScanReport_CTB_'+timestr+'.xlsx')
 sheet = book.add_worksheet("report")
 
 header_format = book.add_format({'bold':True , 'bg_color':'yellow'})
@@ -58,7 +58,7 @@ for col, text in enumerate(header):
 	sheet.write(0, col, text, header_format)
 
 
-f1 = open('ctb.txt','r')
+f1 = open('fgl.txt','r')
 devices = f1.readlines()
 
 ssh = paramiko.SSHClient()
@@ -264,13 +264,62 @@ for device in devices:
 		else:
 			sheet.write(row,32,"FAIL")
 		
-                match60=parse.find_objects("access-list 65")
-                if match60:
-                        match60="YES"
-			sheet.write(row,33,"PASS")
-                else:
-                        sheet.write(row,33,"FAIL")
 
+		#SNMP ACL FOR CTB
+		if f1.name == "ctb.txt":
+			allsnmpacl=parse.find_objects("version 3")
+			if allsnmpacl:
+				sheet.write(row,33,"Waived")
+			else:
+                		ctbiossnmpacl=parse.find_objects("access-list 65")
+                		if ctbiossnmpacl:
+					sheet.write(row,33,"PASS")
+                		else:
+                        		sheet.write(row,33,"FAIL")
+		#SNMP ACL FOR CTC
+		if f1.name == "ctc.txt":
+			allsnmpacl=parse.find_objects("version 3")
+                        if allsnmpacl:
+                                sheet.write(row,33,"Waived")
+                        else:
+
+				aclcount = 0
+                		match60a=parse.find_objects("^access-list 11")
+                		if match60a:
+                        		aclcount= aclcount+1
+
+                		match60b=parse.find_objects("^access-list 12")
+                		if match60b:
+                        		aclcount=aclcount+1
+                		match60c=parse.find_objects("^access-list 13")
+                		if match60c:
+                        		aclcount=aclcount+1
+              			match60d=parse.find_objects("^access-list 14")
+                		if match60d:
+                        		aclcount=aclcount+1
+                		match60e=parse.find_objects("^access-list 15")
+                		if match60e:
+                        		aclcount=aclcount+1
+
+                		if aclcount == 5:
+					sheet.write(row,33,"PASS")
+			
+                		else:
+					sheet.write(row,33,"FAIL")          
+
+		#SNMP ACL FOR FGL
+		if f1.name == "fgl.txt":
+			allsnmpacl=parse.find_objects("version 3")
+                        if allsnmpacl:
+                                sheet.write(row,33,"Waived")
+                        else:
+
+				fgliossnmpacl=parse.find_objects("access-list FGL_SNMP")
+                		if fgliossnmpacl:
+                        		sheet.write(row,33,"PASS")
+                		else:
+                        		sheet.write(row,33,"FAIL")
+   
 
 		#ssh.connect(device, username=username, password=password,timeout=5,allow_agent=False,look_for_keys=False)
 		#stdin,stdout,stderr = ssh.exec_command('sh ip access-list 12')
@@ -619,15 +668,66 @@ for device in devices:
         	#	print "PASS"
 		#	sheet.write(row,31,"PASS")
                 sheet.write(row,31,"Waived")
-		snmpacl1=parse.find_objects("^ip access-list ACL-LIMIT-SNMP")
-		snmpacl2=parse.find_objects("^ip access-list ACL-Limit-SNMP")
-		snmpacl3=parse.find_objects("^ip access-list Limit-SNMP")
-		if snmpacl1 or snmpacl2 or snmpacl3:
-			sheet.write(row,33,"PASS")
-		else:
-			sheet.write(row,33,"FAIL")
+		if f1.name == "ctb.txt":
+			allsnmpacl=parse.find_objects("version 3")
+                        if allsnmpacl:
+                                sheet.write(row,33,"Waived")
+			else:
+				snmpacl1=parse.find_objects("^ip access-list ACL-LIMIT-SNMP")
+				snmpacl2=parse.find_objects("^ip access-list ACL-Limit-SNMP")
+				snmpacl3=parse.find_objects("^ip access-list Limit-SNMP")
+				if snmpacl1 or snmpacl2 or snmpacl3:
+					sheet.write(row,33,"PASS")
+				else:
+					sheet.write(row,33,"FAIL")
+
+		#SNMP ACL FOR CTC
+		if f1.name == "ctc.txt":
+			allsnmpacl=parse.find_objects("version 3")
+                        if allsnmpacl:
+                                sheet.write(row,33,"Waived")
+			else:
+		
+    				aclcount=0
+                		snmpacl11=snmpparse.find_objects("ACL mapped: 11")
+                		if snmpacl11:
+                        		aclcount= aclcount+1
+
+                		snmpacl12=snmpparse.find_objects("ACL mapped: 12")
+                		if snmpacl12:
+                        		aclcount= aclcount+1
+
+                		snmpacl13=snmpparse.find_objects("ACL mapped: 13")
+                		if snmpacl13:
+                        		aclcount= aclcount+1
+
+                		snmpacl14=snmpparse.find_objects("ACL mapped: 14")
+                		if snmpacl14:
+                        		aclcount= aclcount+1
+
+                		snmpacl15=snmpparse.find_objects("ACL mapped: 15")
+                		if snmpacl15:
+                        		aclcount= aclcount+1
 
 		
+                		if aclcount == 5:
+                        		sheet.write(row,33,"PASS")
+                		else:
+                        		sheet.write(row,33,"FAIL")
+	
+	        #SNMP ACL FOR FGL
+		if f1.name == "fgl.txt":
+			allsnmpacl=parse.find_objects("version 3")
+                        if allsnmpacl:
+                                sheet.write(row,33,"Waived")
+			else:
+				fgliossnmpacl=parse.find_objects("access-list FGL_SNMP")
+                		if fgliossnmpacl:
+                        		sheet.write(row,33,"PASS")
+                		else:
+                        		sheet.write(row,33,"FAIL")
+
+
 		aclsnmpservercomm=parse.find_objects("^snmp-server community")
                 if aclsnmpservercomm:
                         sheet.write(row,32,"PASS")
