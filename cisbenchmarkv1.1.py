@@ -267,9 +267,9 @@ for device in devices:
                        	aclcount=aclcount+1
 
                 if aclcount == 5:
-                        match60="YES"
+                        match60="PASS"
                 else:
-                        match60="NO"
+                        match60="FAIL"
 
                 sheet.write(row,33,match60)
 
