@@ -1,5 +1,0 @@
-un_ctb: "svc.netmon"
-
-
-
-pwd_ctb: "j*dM$s#8X3TwP&sn"
